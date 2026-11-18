@@ -1,0 +1,35 @@
+[
+  {
+    "id": "evt-1",
+    "name": "Culture & Connect Night 2026",
+    "date": "2026-11-28",
+    "organizingFunction": "MX",
+    "location": "AU Suvarnabhumi Campus, CL Plaza",
+    "description": "Cultural bonding and community building event for incoming exchange participants and members.",
+    "status": "upcoming",
+    "createdBy": "alyssa@aiesec.net",
+    "createdAt": "2026-11-01T00:00:00Z"
+  },
+  {
+    "id": "evt-2",
+    "name": "LCAU Induction Day 26.27",
+    "date": "2026-12-05",
+    "organizingFunction": "PM",
+    "location": "John Paul II Hall, AU",
+    "description": "Welcoming and onboarding new team members into LCAU.",
+    "status": "upcoming",
+    "createdBy": "nyunttin@aiesec.net",
+    "createdAt": "2026-11-05T00:00:00Z"
+  },
+  {
+    "id": "evt-3",
+    "name": "General Operations & Meeting",
+    "date": "2026-12-31",
+    "organizingFunction": "All LC",
+    "location": "Student Lounge Locker 4A",
+    "description": "Day-to-day LC team meetings and general operational use.",
+    "status": "ongoing",
+    "createdBy": "nyunttin@aiesec.net",
+    "createdAt": "2026-11-01T00:00:00Z"
+  }
+]

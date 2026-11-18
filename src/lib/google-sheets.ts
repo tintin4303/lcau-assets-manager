@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import { Asset, AssetCategory, CreateAssetInput, UpdateAssetInput } from '@/types/asset';
+import { extractGoogleDriveId } from '@/lib/image-utils';
 
 const SCOPES = [
   'https://www.googleapis.com/auth/spreadsheets',
@@ -90,15 +91,17 @@ export async function fetchAllAssets(): Promise<Asset[]> {
       const totalQty = isNumericTotal ? parseInt(rawTotal, 10) : (rawTotal || 0);
 
       let remainingQty: string | number;
-      if (isNumericTotal) {
-        const parsedRemaining = parseInt(rawRemaining, 10);
-        remainingQty = !isNaN(parsedRemaining) ? parsedRemaining : ((totalQty as number) - reqQty);
-      } else {
-        if (status === 'OUT') {
-          remainingQty = 0;
+      if (status === 'OUT') {
+        remainingQty = 0;
+      } else if (isNumericTotal) {
+        if (reqQty > 0) {
+          remainingQty = Math.max(0, (totalQty as number) - reqQty);
         } else {
-          remainingQty = rawRemaining && !rawRemaining.startsWith('#') ? rawRemaining : rawTotal;
+          const parsedRemaining = parseInt(rawRemaining, 10);
+          remainingQty = !isNaN(parsedRemaining) ? parsedRemaining : (totalQty as number);
         }
+      } else {
+        remainingQty = rawRemaining && !rawRemaining.startsWith('#') ? rawRemaining : rawTotal;
       }
 
       assets.push({
@@ -197,6 +200,25 @@ export async function updateAsset(
   const reqBy = data.reqBy !== undefined ? data.reqBy : (existingRow[7] || '');
   const reqQty = data.reqQty !== undefined ? data.reqQty : (parseInt(existingRow[8], 10) || 0);
 
+  // If a new image was uploaded and it replaces an existing Google Drive image, clean up the old file in Drive
+  const oldImage = existingRow[5] || '';
+  if (data.image && data.image !== oldImage) {
+    const oldDriveId = extractGoogleDriveId(oldImage);
+    const newDriveId = extractGoogleDriveId(data.image);
+    if (oldDriveId && oldDriveId !== newDriveId) {
+      try {
+        const drive = await getDrive();
+        await drive.files.update({
+          fileId: oldDriveId,
+          supportsAllDrives: true,
+          requestBody: { trashed: true },
+        });
+      } catch (err) {
+        console.warn('Could not trash replaced Drive file:', err);
+      }
+    }
+  }
+
   const updatedRow = [
     id,
     name,
@@ -230,6 +252,26 @@ export async function deleteAsset(category: AssetCategory, rowIndex: number): Pr
     throw new Error('GOOGLE_SHEET_ID is not configured.');
   }
 
+  // Check if asset has a Google Drive image to clean up
+  try {
+    const existing = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${category}!F${rowIndex}`,
+    });
+    const imageVal = existing.data.values?.[0]?.[0];
+    const driveId = imageVal ? extractGoogleDriveId(String(imageVal)) : null;
+    if (driveId) {
+      const drive = await getDrive();
+      await drive.files.update({
+        fileId: driveId,
+        supportsAllDrives: true,
+        requestBody: { trashed: true },
+      });
+    }
+  } catch (cleanErr) {
+    console.warn('Could not trash Drive file on asset deletion:', cleanErr);
+  }
+
   // Find sheetId for the category
   let sheetId = DEFAULT_SHEET_IDS[category];
   try {
@@ -257,6 +299,41 @@ export async function deleteAsset(category: AssetCategory, rowIndex: number): Pr
           },
         },
       ],
+    },
+  });
+}
+
+export interface BatchRequestItem {
+  category: AssetCategory;
+  rowIndex: number;
+  reqQty: number;
+}
+
+/**
+ * Batch update multiple asset requests in a single atomic Google Sheets API call.
+ * Sets Status to IN (Pending Handover), Req By to requester, and Req Qty to requested amount.
+ */
+export async function batchRequestAssets(
+  reqBy: string,
+  items: BatchRequestItem[]
+): Promise<void> {
+  const sheets = await getSheets();
+  const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+
+  if (!spreadsheetId) {
+    throw new Error('GOOGLE_SHEET_ID is not configured.');
+  }
+
+  const data = items.map((item) => ({
+    range: `${item.category}!G${item.rowIndex}:I${item.rowIndex}`,
+    values: [['IN', reqBy.trim(), item.reqQty]],
+  }));
+
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      valueInputOption: 'USER_ENTERED',
+      data,
     },
   });
 }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDrive } from '@/lib/google-sheets';
-import { Readable } from 'stream';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,30 +19,23 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
     const drive = await getDrive();
 
-    // Stream the file directly from Google Drive
+    // Fetch the file as arraybuffer to ensure complete binary delivery with Content-Length
     const response = await drive.files.get(
       {
         fileId: id,
         alt: 'media',
         supportsAllDrives: true,
       },
-      { responseType: 'stream' }
+      { responseType: 'arraybuffer' }
     );
 
-    const stream = response.data as unknown as Readable;
+    const buffer = Buffer.from(response.data as ArrayBuffer);
+    const contentType = (response.headers as Record<string, string>)?.['content-type'] || 'image/jpeg';
 
-    // Convert node stream to web ReadableStream
-    const webStream = new ReadableStream({
-      start(controller) {
-        stream.on('data', (chunk) => controller.enqueue(chunk));
-        stream.on('end', () => controller.close());
-        stream.on('error', (err) => controller.error(err));
-      },
-    });
-
-    return new NextResponse(webStream, {
+    return new NextResponse(buffer, {
       headers: {
-        'Content-Type': 'image/jpeg',
+        'Content-Type': contentType,
+        'Content-Length': String(buffer.length),
         'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
       },
     });

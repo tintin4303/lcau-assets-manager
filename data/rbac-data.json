@@ -1,0 +1,53 @@
+{
+  "assignments": {
+    "Stationary": {
+      "category": "Stationary",
+      "holderName": "Tim (Master Tin)",
+      "holderEmail": "nyunttin@aiesec.net",
+      "storageLocation": "Student Lounge Locker 4A",
+      "lastUpdated": "2026-11-17T16:15:44.854Z"
+    },
+    "Decoration": {
+      "category": "Decoration",
+      "holderName": "Alyssa",
+      "holderEmail": "alyssa@aiesec.net",
+      "storageLocation": "Student Lounge Cabinet 2",
+      "lastUpdated": "2026-11-17T16:15:44.854Z"
+    },
+    "General": {
+      "category": "General",
+      "holderName": "Tim (Master Tin)",
+      "holderEmail": "nyunttin@aiesec.net",
+      "storageLocation": "Student Lounge Locker 4A",
+      "lastUpdated": "2026-11-17T16:15:44.854Z"
+    }
+  },
+  "accounts": [
+    {
+      "id": "acc-1",
+      "email": "nyunttin@aiesec.net",
+      "name": "Tim (Master Tin)",
+      "role": "holder",
+      "assignedCategory": "Stationary & General",
+      "createdAt": "2026-09-01T00:00:00Z",
+      "status": "active"
+    },
+    {
+      "id": "acc-2",
+      "email": "lcvp.finance@aiesec.net",
+      "name": "LCVP Finance & Legality",
+      "role": "lcvp",
+      "createdAt": "2026-09-01T00:00:00Z",
+      "status": "active"
+    },
+    {
+      "id": "acc-3",
+      "email": "alyssa@aiesec.net",
+      "name": "Alyssa",
+      "role": "holder",
+      "assignedCategory": "Decoration",
+      "createdAt": "2026-09-15T00:00:00Z",
+      "status": "active"
+    }
+  ]
+}

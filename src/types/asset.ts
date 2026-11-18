@@ -36,3 +36,8 @@ export interface UpdateAssetInput {
   reqBy?: string;
   reqQty?: number;
 }
+
+export interface CartItem {
+  asset: Asset;
+  reqQty: number;
+}

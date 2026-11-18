@@ -13,8 +13,9 @@ import {
   CheckCircle2,
   Clock,
   ExternalLink,
+  Minus,
 } from 'lucide-react';
-import { Asset, AssetCategory } from '@/types/asset';
+import { Asset, AssetCategory, CartItem } from '@/types/asset';
 import AssetCard from './AssetCard';
 import AssetDetailModal from './AssetDetailModal';
 import CustomDropdown, { DropdownOption } from './CustomDropdown';
@@ -32,6 +33,11 @@ interface AssetTableProps {
   onDeleteClick: (asset: Asset) => void;
   onRequestClick: (asset: Asset) => void;
   onStatusToggle: (asset: Asset) => void;
+  cartItems?: CartItem[];
+  onAddToCart?: (asset: Asset) => void;
+  onUpdateCartQty?: (category: string, rowIndex: number, qty: number) => void;
+  onRemoveCartItem?: (category: string, rowIndex: number) => void;
+  onOpenCart?: () => void;
   togglingId: string | null;
 }
 
@@ -45,11 +51,16 @@ export default function AssetTable({
   onDeleteClick,
   onRequestClick,
   onStatusToggle,
+  cartItems = [],
+  onAddToCart,
+  onUpdateCartQty,
+  onRemoveCartItem,
+  onOpenCart,
   togglingId,
 }: AssetTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'All' | AssetCategory>('All');
-  const [selectedStatus, setSelectedStatus] = useState<'All' | 'IN' | 'OUT'>('All');
+  const [selectedStatus, setSelectedStatus] = useState<'All' | 'IN' | 'PENDING' | 'OUT'>('All');
   // Default: grid for public, list for admin
   const [viewMode, setViewMode] = useState<ViewMode>(isAdmin ? 'list' : 'grid');
   const [detailAsset, setDetailAsset] = useState<Asset | null>(null);
@@ -70,8 +81,13 @@ export default function AssetTable({
     return assets.filter((item) => {
       if (selectedCategory !== 'All' && item.category !== selectedCategory) return false;
       if (selectedStatus !== 'All') {
-        const s = item.status === 'OUT' ? 'OUT' : 'IN';
-        if (s !== selectedStatus) return false;
+        const isOut = item.status === 'OUT';
+        const isPending = item.status === 'IN' && !!item.reqBy?.trim();
+        const isIn = item.status === 'IN' && !item.reqBy?.trim();
+
+        if (selectedStatus === 'IN' && !isIn) return false;
+        if (selectedStatus === 'PENDING' && !isPending) return false;
+        if (selectedStatus === 'OUT' && !isOut) return false;
       }
       if (searchTerm.trim()) {
         const q = searchTerm.toLowerCase();
@@ -85,14 +101,36 @@ export default function AssetTable({
     });
   }, [assets, selectedCategory, selectedStatus, searchTerm]);
 
-  const counts = useMemo(() => ({
-    total: assets.length,
-    inCount: assets.filter((a) => a.status !== 'OUT').length,
-    outCount: assets.filter((a) => a.status === 'OUT').length,
-    Stationary: assets.filter((a) => a.category === 'Stationary').length,
-    Decoration: assets.filter((a) => a.category === 'Decoration').length,
-    General: assets.filter((a) => a.category === 'General').length,
-  }), [assets]);
+  const counts = useMemo(() => {
+    let totalUnits = 0;
+    let availableUnits = 0;
+    let pendingUnits = 0;
+
+    assets.forEach((a) => {
+      if (typeof a.totalQty === 'number') {
+        totalUnits += a.totalQty;
+      }
+      if (typeof a.remainingQty === 'number') {
+        availableUnits += a.remainingQty;
+      }
+      if (a.status === 'IN' && a.reqBy?.trim() && a.reqQty > 0) {
+        pendingUnits += a.reqQty;
+      }
+    });
+
+    return {
+      total: assets.length,
+      totalUnits,
+      availableUnits,
+      pendingUnits,
+      inCount: assets.filter((a) => a.status === 'IN' && !a.reqBy?.trim()).length,
+      pendingCount: assets.filter((a) => a.status === 'IN' && !!a.reqBy?.trim()).length,
+      outCount: assets.filter((a) => a.status === 'OUT').length,
+      Stationary: assets.filter((a) => a.category === 'Stationary').length,
+      Decoration: assets.filter((a) => a.category === 'Decoration').length,
+      General: assets.filter((a) => a.category === 'General').length,
+    };
+  }, [assets]);
 
   const categoryOptions: DropdownOption<'All' | AssetCategory>[] = useMemo(() => [
     { value: 'All', label: 'All Categories', badge: counts.total },
@@ -101,7 +139,7 @@ export default function AssetTable({
     { value: 'General', label: 'General', badge: counts.General },
   ], [counts]);
 
-  const statusOptions: DropdownOption<'All' | 'IN' | 'OUT'>[] = useMemo(() => [
+  const statusOptions: DropdownOption<'All' | 'IN' | 'PENDING' | 'OUT'>[] = useMemo(() => [
     { value: 'All', label: 'All Status', badge: counts.total },
     {
       value: 'IN',
@@ -110,10 +148,16 @@ export default function AssetTable({
       icon: <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />,
     },
     {
+      value: 'PENDING',
+      label: 'Requested (Pending)',
+      badge: counts.pendingCount,
+      icon: <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block" />,
+    },
+    {
       value: 'OUT',
       label: 'OUT (Checked out)',
       badge: counts.outCount,
-      icon: <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />,
+      icon: <span className="w-1.5 h-1.5 rounded-full bg-slate-400 inline-block" />,
     },
   ], [counts]);
 
@@ -128,55 +172,57 @@ export default function AssetTable({
 
   return (
     <div className="space-y-5">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white p-4 rounded-xl border border-slate-200">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total</span>
-            <Layers className="w-3.5 h-3.5 text-slate-300" />
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{counts.total}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">3 categories</p>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-slate-200">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">In Stock</span>
-            <CheckCircle2 className="w-3.5 h-3.5 text-slate-300" />
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{counts.inCount}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">Available</p>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-slate-200">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Out</span>
-            <Clock className="w-3.5 h-3.5 text-slate-300" />
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{counts.outCount}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">Checked out</p>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-slate-200">
-          <div className="mb-2">
-            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">By Category</span>
-          </div>
-          <div className="text-xs space-y-0.5">
-            <div className="flex justify-between">
-              <span className="text-slate-500">Stationary</span>
-              <span className="font-semibold text-slate-900">{counts.Stationary}</span>
+      {/* Summary Cards (Admin / Asset Holder Only) */}
+      {isAdmin && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-white p-4 rounded-xl border border-slate-200">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total Assets</span>
+              <Layers className="w-3.5 h-3.5 text-slate-300" />
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Decoration</span>
-              <span className="font-semibold text-slate-900">{counts.Decoration}</span>
+            <p className="text-2xl font-bold text-slate-900">{counts.total}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">{counts.totalUnits.toLocaleString()} total units</p>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-slate-200">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">In Stock Units</span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-slate-300" />
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">General</span>
-              <span className="font-semibold text-slate-900">{counts.General}</span>
+            <p className="text-2xl font-bold text-slate-900">{counts.availableUnits.toLocaleString()}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">{counts.inCount} asset items available</p>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-slate-200">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pending Handover</span>
+              <Clock className="w-3.5 h-3.5 text-amber-500" />
+            </div>
+            <p className="text-2xl font-bold text-amber-600">{counts.pendingCount}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">{counts.pendingUnits > 0 ? `${counts.pendingUnits} units requested` : '0 awaiting handover'}</p>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-slate-200">
+            <div className="mb-2">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">By Category</span>
+            </div>
+            <div className="text-xs space-y-0.5">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Stationary</span>
+                <span className="font-semibold text-slate-900">{counts.Stationary}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Decoration</span>
+                <span className="font-semibold text-slate-900">{counts.Decoration}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">General</span>
+                <span className="font-semibold text-slate-900">{counts.General}</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Controls Bar */}
       <div className="bg-white rounded-xl border border-slate-200">
@@ -276,20 +322,30 @@ export default function AssetTable({
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
-                {filteredAssets.map((asset) => (
-                  <AssetCard
-                    key={`${asset.category}-${asset.rowIndex}`}
-                    asset={asset}
-                    isAdmin={isAdmin}
-                    onRequestClick={onRequestClick}
-                    onEditClick={onEditClick}
-                    onDeleteClick={onDeleteClick}
-                    onStatusToggle={onStatusToggle}
-                    onDetailClick={(a) => setDetailAsset(a)}
-                    onImageClick={openLightbox}
-                    isTogglingStatus={togglingId === `${asset.category}-${asset.rowIndex}`}
-                  />
-                ))}
+                {filteredAssets.map((asset) => {
+                  const cartItem = cartItems.find(
+                    (c) => c.asset.category === asset.category && c.asset.rowIndex === asset.rowIndex
+                  );
+                  return (
+                    <AssetCard
+                      key={`${asset.category}-${asset.rowIndex}`}
+                      asset={asset}
+                      isAdmin={isAdmin}
+                      onRequestClick={onRequestClick}
+                      onEditClick={onEditClick}
+                      onDeleteClick={onDeleteClick}
+                      onStatusToggle={onStatusToggle}
+                      onDetailClick={(a) => setDetailAsset(a)}
+                      onAddToCart={onAddToCart}
+                      onUpdateCartQty={onUpdateCartQty}
+                      onRemoveCartItem={onRemoveCartItem}
+                      isInCart={!!cartItem}
+                      cartQty={cartItem?.reqQty || 0}
+                      onImageClick={openLightbox}
+                      isTogglingStatus={togglingId === `${asset.category}-${asset.rowIndex}`}
+                    />
+                  );
+                })}
               </div>
             )}
           </div>
@@ -336,9 +392,13 @@ export default function AssetTable({
                 ) : (
                   filteredAssets.map((asset) => {
                     const isOut = asset.status === 'OUT';
+                    const isPending = asset.status === 'IN' && !!asset.reqBy?.trim();
                     const isToggling = togglingId === `${asset.category}-${asset.rowIndex}`;
                     const thumbnailUrl = getThumbnailUrl(asset.image, 'sm');
                     const viewUrl = getDriveViewUrl(asset.image);
+                    const cartItem = cartItems.find(
+                      (c) => c.asset.category === asset.category && c.asset.rowIndex === asset.rowIndex
+                    );
 
                     return (
                       <tr
@@ -399,20 +459,34 @@ export default function AssetTable({
                           )}
                         </td>
 
-                        {/* Status — dot + weight only, no color */}
+                        {/* Status */}
                         <td className="py-2.5 px-4 text-center whitespace-nowrap">
-                          <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-wide ${
-                            isOut ? 'text-slate-500' : 'text-slate-900'
-                          }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full inline-block flex-shrink-0 ${
-                              isOut ? 'bg-slate-400' : 'bg-slate-900'
-                            }`} />
-                            {isOut ? 'OUT' : 'IN'}
-                          </span>
+                          {isOut ? (
+                            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 inline-block shrink-0" />
+                              OUT
+                            </span>
+                          ) : isPending ? (
+                            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block shrink-0" />
+                              REQUESTED
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-900">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block shrink-0" />
+                              IN
+                            </span>
+                          )}
                         </td>
 
-                        <td className="py-2.5 px-4 text-slate-500 max-w-[180px] truncate" title={asset.reqBy}>
-                          {asset.reqBy || <span className="text-slate-300">—</span>}
+                        <td className="py-2.5 px-4 text-slate-600 max-w-[180px] truncate" title={asset.reqBy}>
+                          {asset.reqBy ? (
+                            <span className={isPending ? 'text-amber-800 font-medium' : 'text-slate-700'}>
+                              {asset.reqBy}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
                         </td>
 
                         <td className="py-2.5 px-3 text-center font-medium text-slate-700">
@@ -427,10 +501,22 @@ export default function AssetTable({
                               <button
                                 onClick={() => onStatusToggle(asset)}
                                 disabled={isToggling}
-                                className="px-2 py-1 text-[10px] font-semibold rounded border border-slate-300 text-slate-600 hover:bg-slate-100 transition disabled:opacity-50"
-                                title={isOut ? 'Mark as IN' : 'Mark as OUT'}
+                                className={`px-2.5 py-1 text-[10px] font-semibold rounded border transition disabled:opacity-50 ${
+                                  isOut
+                                    ? 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                                    : isPending
+                                    ? 'border-amber-400 bg-amber-50 text-amber-800 hover:bg-amber-100 font-bold'
+                                    : 'border-slate-300 text-slate-600 hover:bg-slate-100'
+                                }`}
+                                title={
+                                  isOut
+                                    ? 'Mark as Returned (IN)'
+                                    : isPending
+                                    ? 'Hand Over (Mark OUT)'
+                                    : 'Mark as OUT'
+                                }
                               >
-                                {isToggling ? '...' : isOut ? '→ IN' : '→ OUT'}
+                                {isToggling ? '...' : isOut ? '→ IN' : isPending ? 'Hand Over' : '→ OUT'}
                               </button>
                               <button
                                 onClick={() => onEditClick(asset)}
@@ -447,17 +533,64 @@ export default function AssetTable({
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
+                          ) : cartItem ? (
+                            <div className="inline-flex items-center bg-[#037ef3] text-white rounded-lg p-0.5 shadow-2xs">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (cartItem.reqQty <= 1) {
+                                    onRemoveCartItem?.(asset.category, asset.rowIndex);
+                                  } else {
+                                    onUpdateCartQty?.(asset.category, asset.rowIndex, cartItem.reqQty - 1);
+                                  }
+                                }}
+                                className="w-5 h-5 flex items-center justify-center rounded hover:bg-black/15 active:bg-black/25 transition text-white"
+                                title={cartItem.reqQty <= 1 ? 'Remove from basket' : 'Decrease quantity'}
+                              >
+                                {cartItem.reqQty <= 1 ? (
+                                  <Trash2 className="w-2.5 h-2.5" />
+                                ) : (
+                                  <Minus className="w-2.5 h-2.5" />
+                                )}
+                              </button>
+                              <span className="min-w-[16px] px-1 text-center text-[11px] font-black select-none leading-none">
+                                {cartItem.reqQty}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const isNum = typeof asset.remainingQty === 'number';
+                                  const max = isNum && (asset.remainingQty as number) > 0 ? (asset.remainingQty as number) : 999;
+                                  onUpdateCartQty?.(
+                                    asset.category,
+                                    asset.rowIndex,
+                                    Math.min(max, cartItem.reqQty + 1)
+                                  );
+                                }}
+                                disabled={typeof asset.remainingQty === 'number' && cartItem.reqQty >= (asset.remainingQty as number)}
+                                className="w-5 h-5 flex items-center justify-center rounded hover:bg-black/15 active:bg-black/25 transition disabled:opacity-30 disabled:cursor-not-allowed text-white"
+                                title="Increase quantity"
+                              >
+                                <Plus className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
                           ) : (
                             <button
-                              onClick={() => onRequestClick(asset)}
-                              disabled={isOut || (typeof asset.remainingQty === 'number' && asset.remainingQty <= 0)}
-                              className={`px-3 py-1 text-[11px] font-semibold rounded-lg transition ${
-                                isOut || (typeof asset.remainingQty === 'number' && asset.remainingQty <= 0)
-                                  ? 'text-slate-400 bg-slate-100 cursor-not-allowed'
-                                  : 'text-[#037ef3] border border-[#037ef3]/30 hover:bg-[#037ef3]/5'
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onAddToCart ? onAddToCart(asset) : onRequestClick(asset);
+                              }}
+                              disabled={isOut || isPending || (typeof asset.remainingQty === 'number' && (asset.remainingQty as number) <= 0)}
+                              className={`px-3 py-1 text-[11px] font-bold rounded-lg transition ${
+                                isOut || isPending || (typeof asset.remainingQty === 'number' && (asset.remainingQty as number) <= 0)
+                                  ? 'text-slate-300 bg-slate-100 cursor-not-allowed'
+                                  : 'text-[#037ef3] border border-[#037ef3]/30 hover:bg-[#037ef3]/10 active:scale-95'
                               }`}
                             >
-                              {isOut ? 'Unavailable' : 'Request'}
+                              {isOut ? 'Unavailable' : isPending ? 'Requested' : '+ Add'}
                             </button>
                           )}
                         </td>
@@ -490,6 +623,28 @@ export default function AssetTable({
         onEditClick={onEditClick}
         onDeleteClick={onDeleteClick}
         onStatusToggle={onStatusToggle}
+        onAddToCart={onAddToCart}
+        onUpdateCartQty={onUpdateCartQty}
+        onRemoveCartItem={onRemoveCartItem}
+        isInCart={
+          activeDetailAsset
+            ? !!cartItems.find(
+                (c) =>
+                  c.asset.category === activeDetailAsset.category &&
+                  c.asset.rowIndex === activeDetailAsset.rowIndex
+              )
+            : false
+        }
+        cartQty={
+          activeDetailAsset
+            ? cartItems.find(
+                (c) =>
+                  c.asset.category === activeDetailAsset.category &&
+                  c.asset.rowIndex === activeDetailAsset.rowIndex
+              )?.reqQty || 0
+            : 0
+        }
+        onOpenCart={onOpenCart}
         isTogglingStatus={
           activeDetailAsset
             ? togglingId === `${activeDetailAsset.category}-${activeDetailAsset.rowIndex}`

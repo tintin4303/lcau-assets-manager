@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Readable } from 'stream';
 import sharp from 'sharp';
+import convert from 'heic-convert';
 import { getDrive } from '@/lib/google-sheets';
 import { verifyAdmin } from '@/lib/server-auth';
 
@@ -27,17 +28,38 @@ export async function POST(request: NextRequest) {
 
     const rawBuffer = Buffer.from(await file.arrayBuffer());
 
-    // Convert and optimize ANY incoming format (HEIC, HEIF, PNG, WebP, JPG, TIFF) to standard JPEG
+    // Convert Apple HEIC/HEIF files (common from iPhone camera uploads)
+    let inputBuffer = rawBuffer;
+    const isHeic =
+      file.type === 'image/heic' ||
+      file.type === 'image/heif' ||
+      /\.(heic|heif)$/i.test(file.name) ||
+      rawBuffer.slice(4, 12).toString().includes('ftyp');
+
+    if (isHeic) {
+      try {
+        const converted = await convert({
+          buffer: rawBuffer,
+          format: 'JPEG',
+          quality: 0.9,
+        });
+        inputBuffer = Buffer.from(converted);
+      } catch (heicErr) {
+        console.warn('heic-convert error, falling back to sharp directly:', heicErr);
+      }
+    }
+
+    // Convert and optimize to standard cross-browser JPEG
     let processedBuffer: Buffer;
     try {
-      processedBuffer = await sharp(rawBuffer)
-        .rotate() // Automatically orient based on EXIF orientation (fixes mobile sideways/upside-down photos)
+      processedBuffer = await sharp(inputBuffer)
+        .rotate() // Automatically orient based on EXIF orientation (fixes sideways mobile photos)
         .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
         .jpeg({ quality: 85, mozjpeg: true })
         .toBuffer();
     } catch (sharpErr) {
-      console.warn('Sharp processing fallback to raw buffer:', sharpErr);
-      processedBuffer = rawBuffer;
+      console.warn('Sharp processing fallback to input buffer:', sharpErr);
+      processedBuffer = inputBuffer;
     }
 
     const drive = await getDrive();

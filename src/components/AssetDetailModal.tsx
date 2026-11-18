@@ -12,6 +12,10 @@ import {
   CheckCircle2,
   Clock,
   Maximize2,
+  Plus,
+  Check,
+  Minus,
+  ShoppingBag,
 } from 'lucide-react';
 import { Asset } from '@/types/asset';
 import { getThumbnailUrl, getDriveViewUrl } from '@/lib/image-utils';
@@ -25,6 +29,12 @@ interface AssetDetailModalProps {
   onEditClick: (asset: Asset) => void;
   onDeleteClick: (asset: Asset) => void;
   onStatusToggle: (asset: Asset) => void;
+  onAddToCart?: (asset: Asset) => void;
+  onUpdateCartQty?: (category: string, rowIndex: number, qty: number) => void;
+  onRemoveCartItem?: (category: string, rowIndex: number) => void;
+  isInCart?: boolean;
+  cartQty?: number;
+  onOpenCart?: () => void;
   isTogglingStatus: boolean;
   onImageClick?: (rawImage: string) => void;
 }
@@ -38,6 +48,12 @@ export default function AssetDetailModal({
   onEditClick,
   onDeleteClick,
   onStatusToggle,
+  onAddToCart,
+  onUpdateCartQty,
+  onRemoveCartItem,
+  isInCart = false,
+  cartQty = 0,
+  onOpenCart,
   isTogglingStatus,
   onImageClick,
 }: AssetDetailModalProps) {
@@ -48,8 +64,9 @@ export default function AssetDetailModal({
   const thumbnailUrl = getThumbnailUrl(asset.image, 'lg');
   const viewUrl = getDriveViewUrl(asset.image);
   const isOut = asset.status === 'OUT';
+  const isPending = asset.status === 'IN' && !!asset.reqBy?.trim();
   const isNumericRemaining = typeof asset.remainingQty === 'number';
-  const hasRemaining = isOut ? false : (isNumericRemaining ? asset.remainingQty > 0 : true);
+  const hasRemaining = (isOut || isPending) ? false : (isNumericRemaining ? (asset.remainingQty as number) > 0 : true);
   const hasImage = !!thumbnailUrl && !imageError;
 
   return (
@@ -96,18 +113,22 @@ export default function AssetDetailModal({
               </p>
             </div>
 
-            <span
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold shrink-0 self-start ${
-                isOut
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'
-              }`}
-            >
-              <span
-                className={`w-2 h-2 rounded-full ${isOut ? 'bg-amber-400' : 'bg-emerald-500'}`}
-              />
-              {isOut ? 'OUT (Checked out)' : 'IN (Available)'}
-            </span>
+            {isOut ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-900 text-white shrink-0 self-start">
+                <span className="w-2 h-2 rounded-full bg-slate-400" />
+                OUT (Checked out)
+              </span>
+            ) : isPending ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200/90 shrink-0 self-start">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                REQUESTED (Pending Handover)
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shrink-0 self-start">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                IN (Available)
+              </span>
+            )}
           </div>
 
           {/* Photo & Quantities Grid */}
@@ -193,17 +214,32 @@ export default function AssetDetailModal({
 
               {/* Requester Information Card */}
               {asset.reqBy || isOut ? (
-                <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-3.5">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-[#037ef3] mb-1">
+                <div
+                  className={`border rounded-xl p-3.5 ${
+                    isPending
+                      ? 'bg-amber-50/80 border-amber-200'
+                      : 'bg-blue-50/60 border-blue-100'
+                  }`}
+                >
+                  <div
+                    className={`flex items-center gap-1.5 text-xs font-semibold mb-1 ${
+                      isPending ? 'text-amber-800' : 'text-[#037ef3]'
+                    }`}
+                  >
                     <User className="w-3.5 h-3.5" />
-                    <span>Requested / Checked Out By</span>
+                    <span>{isPending ? 'Requested By (Pending Handover)' : 'Checked Out By'}</span>
                   </div>
                   <p className="text-sm font-bold text-slate-900 break-words">
                     {asset.reqBy || <span className="text-slate-400 font-normal italic">No name recorded</span>}
                   </p>
                   {asset.reqQty > 0 && (
                     <p className="text-xs text-slate-500 mt-1">
-                      Quantity: <span className="font-semibold text-slate-800">{asset.reqQty} {asset.unit}</span>
+                      Quantity requested: <span className="font-semibold text-slate-800">{asset.reqQty} {asset.unit}</span>
+                    </p>
+                  )}
+                  {isPending && isAdmin && (
+                    <p className="text-[11px] text-amber-700 mt-2 font-medium bg-amber-100/60 p-1.5 rounded-lg border border-amber-200/60">
+                      Member has requested this item. Click &quot;Hand Over&quot; below once you physically hand over the assets.
                     </p>
                   )}
                 </div>
@@ -234,18 +270,26 @@ export default function AssetDetailModal({
         <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-2">
           {isAdmin ? (
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              {/* Mark IN/OUT */}
+              {/* Mark IN/OUT & Handover */}
               <button
                 type="button"
                 onClick={() => onStatusToggle(asset)}
                 disabled={isTogglingStatus}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition disabled:opacity-50 ${
+                className={`px-3.5 py-1.5 text-xs font-bold rounded-lg border transition disabled:opacity-50 ${
                   isOut
                     ? 'bg-slate-900 text-white border-slate-900 hover:bg-slate-800'
+                    : isPending
+                    ? 'bg-amber-500 text-white border-amber-500 hover:bg-amber-600 shadow-sm'
                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
                 }`}
               >
-                {isTogglingStatus ? 'Updating...' : isOut ? 'Mark as IN' : 'Mark as OUT'}
+                {isTogglingStatus
+                  ? 'Updating...'
+                  : isOut
+                  ? 'Mark as Returned (IN)'
+                  : isPending
+                  ? 'Hand Over (Mark OUT)'
+                  : 'Mark as OUT'}
               </button>
 
               {/* Edit */}
@@ -274,21 +318,89 @@ export default function AssetDetailModal({
                 <span>Delete</span>
               </button>
             </div>
+          ) : isInCart ? (
+            <div className="flex items-center gap-2.5 flex-wrap">
+              {/* Inline Stepper */}
+              <div className="flex items-center bg-slate-100 border border-slate-200 rounded-xl p-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (cartQty <= 1) {
+                      onRemoveCartItem?.(asset.category, asset.rowIndex);
+                    } else {
+                      onUpdateCartQty?.(asset.category, asset.rowIndex, cartQty - 1);
+                    }
+                  }}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-700 hover:text-slate-950 hover:bg-white active:bg-slate-200 transition"
+                  title={cartQty <= 1 ? 'Remove from basket' : 'Decrease quantity'}
+                >
+                  {cartQty <= 1 ? (
+                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                  ) : (
+                    <Minus className="w-3.5 h-3.5" />
+                  )}
+                </button>
+
+                <div className="px-3 text-center min-w-[50px]">
+                  <span className="text-xs font-black text-slate-900 block leading-tight">{cartQty}</span>
+                  <span className="text-[9px] text-slate-400 font-medium leading-none">in basket</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const isNum = typeof asset.remainingQty === 'number';
+                    const max = isNum && (asset.remainingQty as number) > 0 ? (asset.remainingQty as number) : 999;
+                    onUpdateCartQty?.(asset.category, asset.rowIndex, Math.min(max, cartQty + 1));
+                  }}
+                  disabled={typeof asset.remainingQty === 'number' && cartQty >= (asset.remainingQty as number)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-700 hover:text-slate-950 hover:bg-white active:bg-slate-200 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Increase quantity"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {onOpenCart && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenCart();
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-[#037ef3] text-white hover:bg-[#0263c2] transition shadow-2xs"
+                >
+                  <ShoppingBag className="w-3.5 h-3.5" />
+                  <span>View Basket</span>
+                </button>
+              )}
+            </div>
           ) : (
             <button
               type="button"
               onClick={() => {
-                onClose();
-                onRequestClick(asset);
+                if (onAddToCart) {
+                  onAddToCart(asset);
+                } else {
+                  onClose();
+                  onRequestClick(asset);
+                }
               }}
-              disabled={isOut || !hasRemaining}
-              className={`px-4 py-2 text-xs font-semibold rounded-lg transition ${
-                isOut || !hasRemaining
+              disabled={isOut || isPending || !hasRemaining}
+              className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition ${
+                isOut || isPending || !hasRemaining
                   ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                  : 'bg-[#037ef3] text-white hover:bg-[#0263c2]'
+                  : 'bg-[#037ef3] text-white hover:bg-[#0263c2] shadow-2xs'
               }`}
             >
-              {isOut ? 'Unavailable' : 'Request This Asset'}
+              <Plus className="w-3.5 h-3.5" />
+              <span>
+                {isOut
+                  ? 'Unavailable (Checked Out)'
+                  : isPending
+                  ? 'Requested (Pending Handover)'
+                  : 'Add to Request Basket'}
+              </span>
             </button>
           )}
 

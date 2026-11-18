@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateAsset } from '@/lib/google-sheets';
+import { logBatchRequests } from '@/lib/event-history-storage';
 import { AssetCategory } from '@/types/asset';
 
 type RouteContext = {
@@ -44,11 +45,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
     }
 
+    // Option 1: Keep status as IN (Pending Handover) until Admin physically hands over the asset
     await updateAsset(category as AssetCategory, rowIndex, {
-      status: 'OUT',
+      status: 'IN',
       reqBy: reqBy.trim(),
       reqQty: qty,
     });
+
+    // Record in Event Equipment History
+    logBatchRequests(reqBy.trim(), [{ category, rowIndex, reqQty: qty }]);
 
     return NextResponse.json({ success: true, message: 'Asset requested successfully.' });
   } catch (err: unknown) {

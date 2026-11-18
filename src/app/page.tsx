@@ -7,14 +7,14 @@ import AssetTable from '@/components/AssetTable';
 import AssetModal from '@/components/AssetModal';
 import DeleteModal from '@/components/DeleteModal';
 import RequestModal from '@/components/RequestModal';
+import RequestCartModal from '@/components/RequestCartModal';
 import { supabase } from '@/lib/supabase';
-import { Asset } from '@/types/asset';
-import type { User, Session } from '@supabase/supabase-js';
-import { AlertCircle, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Asset, CartItem } from '@/types/asset';
+import { useRBAC } from '@/hooks/useRBAC';
+import { AlertCircle, RefreshCw, CheckCircle2, ShoppingBag } from 'lucide-react';
 
 export default function Home() {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const { user, session, role, isAdmin, isHolder, logout } = useRBAC();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,17 +38,75 @@ export default function Home() {
   // Inline status toggle tracking
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
-  // Auth
+  // Request Basket / Cart state
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
+  // Load basket from localStorage
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    try {
+      const saved = localStorage.getItem('lcau_request_cart');
+      if (saved) {
+        setCartItems(JSON.parse(saved));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Save basket to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('lcau_request_cart', JSON.stringify(cartItems));
+    } catch {
+      // ignore
+    }
+  }, [cartItems]);
+
+  const handleAddToCart = useCallback((asset: Asset) => {
+    setCartItems((prev) => {
+      const existing = prev.find(
+        (item) => item.asset.category === asset.category && item.asset.rowIndex === asset.rowIndex
+      );
+      const isNumeric = typeof asset.remainingQty === 'number';
+      const maxQty = isNumeric && (asset.remainingQty as number) > 0 ? (asset.remainingQty as number) : 999;
+
+      if (existing) {
+        if (existing.reqQty >= maxQty) return prev;
+        return prev.map((item) =>
+          item.asset.category === asset.category && item.asset.rowIndex === asset.rowIndex
+            ? { ...item, reqQty: item.reqQty + 1 }
+            : item
+        );
+      }
+      return [...prev, { asset, reqQty: 1 }];
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-    });
-    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleUpdateCartQty = useCallback((category: string, rowIndex: number, qty: number) => {
+    if (qty <= 0) {
+      setCartItems((prev) =>
+        prev.filter((item) => !(item.asset.category === category && item.asset.rowIndex === rowIndex))
+      );
+      return;
+    }
+    setCartItems((prev) =>
+      prev.map((item) =>
+        item.asset.category === category && item.asset.rowIndex === rowIndex
+          ? { ...item, reqQty: qty }
+          : item
+      )
+    );
+  }, []);
+
+  const handleRemoveCartItem = useCallback((category: string, rowIndex: number) => {
+    setCartItems((prev) =>
+      prev.filter((item) => !(item.asset.category === category && item.asset.rowIndex === rowIndex))
+    );
+  }, []);
+
+  const handleClearCart = useCallback(() => {
+    setCartItems([]);
   }, []);
 
   // Fetch assets
@@ -67,19 +125,18 @@ export default function Home() {
     }
   }, []);
 
+  const handleBatchSuccess = useCallback((count: number) => {
+    fetchAssets();
+    setSuccessMessage(`Bulk request for ${count} items submitted! The asset holder will hand them over.`);
+    setTimeout(() => setSuccessMessage(null), 4000);
+  }, [fetchAssets]);
+
   useEffect(() => { fetchAssets(); }, [fetchAssets]);
 
   // Show success toast briefly
   const showSuccess = (msg: string) => {
     setSuccessMessage(msg);
     setTimeout(() => setSuccessMessage(null), 3500);
-  };
-
-  // Auth
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
   };
 
   // CRUD handlers
@@ -105,17 +162,33 @@ export default function Home() {
     setIsRequestOpen(true);
   };
 
-  // Inline quick toggle for admins
+  // Inline quick toggle for admins (Handover vs Return)
   const handleStatusToggle = useCallback(async (asset: Asset) => {
+    if (!isHolder) {
+      setError('LCVP Audit Restriction: Physical handovers and returns must be executed by Asset Holders.');
+      setTimeout(() => setError(null), 4000);
+      return;
+    }
+
     const key = `${asset.category}-${asset.rowIndex}`;
     setTogglingId(key);
-    const newStatus = asset.status === 'OUT' ? 'IN' : 'OUT';
+    const isOut = asset.status === 'OUT';
+    const newStatus: 'IN' | 'OUT' = isOut ? 'IN' : 'OUT';
+
+    // When marking IN (returned), clear requester info. When marking OUT (handover), keep existing requester.
+    const payload: Partial<Asset> = isOut
+      ? { status: 'IN', reqBy: '', reqQty: 0 }
+      : { status: 'OUT' };
 
     // Optimistic update
     setAssets((prev) =>
       prev.map((a) =>
         a.category === asset.category && a.rowIndex === asset.rowIndex
-          ? { ...a, status: newStatus }
+          ? {
+              ...a,
+              status: newStatus,
+              ...(isOut ? { reqBy: '', reqQty: 0 } : {}),
+            }
           : a
       )
     );
@@ -127,17 +200,21 @@ export default function Home() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session?.access_token}`,
         },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to update status');
-      showSuccess(`${asset.name} marked as ${newStatus}.`);
+      showSuccess(
+        isOut
+          ? `${asset.name} marked as returned (IN).`
+          : `${asset.name} handed over and marked as OUT.`
+      );
     } catch (err: unknown) {
       // Revert on failure
       setAssets((prev) =>
         prev.map((a) =>
           a.category === asset.category && a.rowIndex === asset.rowIndex
-            ? { ...a, status: asset.status }
+            ? { ...a, status: asset.status, reqBy: asset.reqBy, reqQty: asset.reqQty }
             : a
         )
       );
@@ -147,9 +224,15 @@ export default function Home() {
     }
   }, [session]);
 
+  const totalCartUnits = cartItems.reduce((acc, i) => acc + i.reqQty, 0);
+
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
-      <Navbar user={user} onLogout={handleLogout} />
+    <div className="min-h-screen flex flex-col bg-slate-50 relative">
+      <Navbar
+        user={user}
+        role={role}
+        onLogout={logout}
+      />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-6">
 
@@ -166,9 +249,25 @@ export default function Home() {
               <p className="mt-1 text-sm text-slate-500">
                 {user
                   ? 'Admin mode active. Click any status badge to toggle, or use the Edit/Delete controls.'
-                  : 'Browse available assets and submit a request directly from this page.'}
+                  : 'Browse available assets, add them to your request basket, and submit a request in bulk.'}
               </p>
             </div>
+
+            {/* Quick Basket button on header for public users */}
+            {!user && (
+              <button
+                type="button"
+                onClick={() => setIsCartOpen(true)}
+                className={`hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition shadow-2xs ${
+                  totalCartUnits > 0
+                    ? 'bg-[#037ef3] text-white border-[#037ef3] hover:bg-[#0263c2]'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <ShoppingBag className="w-4 h-4" />
+                <span>Request Basket ({totalCartUnits})</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -191,10 +290,22 @@ export default function Home() {
           </div>
         )}
 
+        {/* Floating Success Toast (No layout shift) */}
         {successMessage && (
-          <div className="p-3.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-            <span className="font-medium">{successMessage}</span>
+          <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 max-w-md w-11/12 animate-in fade-in-0 slide-in-from-top-4 duration-200">
+            <div className="p-3.5 rounded-2xl bg-slate-950 text-white shadow-2xl border border-slate-800 text-xs flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span className="font-medium text-slate-100">{successMessage}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSuccessMessage(null)}
+                className="text-slate-400 hover:text-white font-bold text-base leading-none p-1 shrink-0"
+              >
+                ×
+              </button>
+            </div>
           </div>
         )}
 
@@ -202,18 +313,60 @@ export default function Home() {
         <AssetTable
           assets={assets}
           loading={loading}
-          isAdmin={!!user}
+          isAdmin={isAdmin}
           onRefresh={fetchAssets}
           onAddClick={handleAddClick}
           onEditClick={handleEditClick}
           onDeleteClick={handleDeleteClick}
           onRequestClick={handleRequestClick}
           onStatusToggle={handleStatusToggle}
+          cartItems={cartItems}
+          onAddToCart={handleAddToCart}
+          onUpdateCartQty={handleUpdateCartQty}
+          onRemoveCartItem={handleRemoveCartItem}
+          onOpenCart={() => setIsCartOpen(true)}
           togglingId={togglingId}
         />
       </main>
 
       <Footer />
+
+      {/* Floating Request Basket Bar (Mobile-friendly sticky bar / Desktop pill) */}
+      {!user && cartItems.length > 0 && (
+        <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 z-40 animate-in fade-in-0 slide-in-from-bottom-4 duration-200">
+          <button
+            type="button"
+            onClick={() => setIsCartOpen(true)}
+            className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-3.5 px-4 sm:px-5 py-3 rounded-2xl bg-slate-950/95 text-white shadow-2xl hover:bg-slate-900 active:scale-98 transition border border-slate-800 backdrop-blur-md"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-[#037ef3] flex items-center justify-center font-black text-xs text-white shadow-xs">
+                {cartItems.reduce((acc, i) => acc + i.reqQty, 0)}
+              </div>
+              <div className="text-left">
+                <span className="text-xs font-bold block leading-tight">Request Basket</span>
+                <span className="text-[10px] text-slate-400 font-medium">
+                  {cartItems.length} {cartItems.length === 1 ? 'item' : 'items'}
+                </span>
+              </div>
+            </div>
+            <span className="text-xs font-bold text-[#037ef3] flex items-center gap-1 sm:ml-2">
+              View Basket &rarr;
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* Bulk Request Cart Modal */}
+      <RequestCartModal
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        items={cartItems}
+        onUpdateQty={handleUpdateCartQty}
+        onRemoveItem={handleRemoveCartItem}
+        onClearCart={handleClearCart}
+        onSuccess={handleBatchSuccess}
+      />
 
       {/* Admin CRUD Modals */}
       {user && session && (
@@ -236,12 +389,15 @@ export default function Home() {
         </>
       )}
 
-      {/* Public Request Modal */}
+      {/* Public Single Item Request Modal (Fallback) */}
       <RequestModal
         isOpen={isRequestOpen}
         asset={assetToRequest}
         onClose={() => setIsRequestOpen(false)}
-        onSuccess={(id) => { fetchAssets(); showSuccess(`Request submitted for ${id}.`); }}
+        onSuccess={(id) => {
+          fetchAssets();
+          showSuccess(`Request submitted for ${id}. The asset holder will hand over the item.`);
+        }}
       />
     </div>
   );

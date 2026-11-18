@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ArrowUpRight, Edit2, Trash2, Info } from 'lucide-react';
+import { Trash2, Plus, Minus } from 'lucide-react';
 import { Asset } from '@/types/asset';
 import { getThumbnailUrl } from '@/lib/image-utils';
 
@@ -13,6 +13,11 @@ interface AssetCardProps {
   onDeleteClick: (asset: Asset) => void;
   onStatusToggle: (asset: Asset) => void;
   onDetailClick: (asset: Asset) => void;
+  onAddToCart?: (asset: Asset) => void;
+  onUpdateCartQty?: (category: string, rowIndex: number, qty: number) => void;
+  onRemoveCartItem?: (category: string, rowIndex: number) => void;
+  isInCart?: boolean;
+  cartQty?: number;
   onImageClick?: (rawImage: string) => void;
   isTogglingStatus: boolean;
 }
@@ -25,36 +30,46 @@ export default function AssetCard({
   onDeleteClick,
   onStatusToggle,
   onDetailClick,
-  onImageClick,
+  onAddToCart,
+  onUpdateCartQty,
+  onRemoveCartItem,
+  isInCart,
+  cartQty = 0,
   isTogglingStatus,
 }: AssetCardProps) {
   const [imageError, setImageError] = useState(false);
 
+  React.useEffect(() => {
+    setImageError(false);
+  }, [asset.image]);
+
   const thumbnailUrl = getThumbnailUrl(asset.image, 'lg');
   const isOut = asset.status === 'OUT';
+  const isPending = asset.status === 'IN' && !!asset.reqBy?.trim();
   const isNumericRemaining = typeof asset.remainingQty === 'number';
-  const isNumericTotal = typeof asset.totalQty === 'number';
-  const hasRemaining = isOut ? false : (isNumericRemaining ? asset.remainingQty > 0 : true);
+  const hasRemaining = (isOut || isPending) ? false : (isNumericRemaining ? (asset.remainingQty as number) > 0 : true);
   const hasImage = !!thumbnailUrl && !imageError;
+  const maxQty = isNumericRemaining && (asset.remainingQty as number) > 0 ? (asset.remainingQty as number) : 999;
 
-  const availabilityBadge = isOut
+  const availabilityText = isOut
     ? '0 available'
-    : isNumericRemaining && isNumericTotal
-    ? `${asset.remainingQty}/${asset.totalQty} available`
+    : isPending
+    ? 'Pending'
+    : isNumericRemaining
+    ? `${asset.remainingQty} available`
     : `${asset.totalQty} available`;
-
-  const subtitle = [asset.category, asset.unit].filter(Boolean).join(' · ');
 
   return (
     <div
       onClick={() => onDetailClick(asset)}
-      className="group relative rounded-2xl overflow-hidden border border-slate-200 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer select-none"
+      className="group relative rounded-2xl overflow-hidden border border-slate-200/90 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer select-none bg-slate-100"
       style={{ aspectRatio: '3/4' }}
     >
-      {/* ── BACKGROUND IMAGE (fills entire card) ───────────── */}
+      {/* ── FULL BACKGROUND IMAGE ──────────────────────────── */}
       {hasImage ? (
         /* eslint-disable-next-line @next/next/no-img-element */
         <img
+          key={thumbnailUrl || 'image'}
           src={thumbnailUrl}
           alt={asset.name}
           referrerPolicy="no-referrer"
@@ -62,132 +77,158 @@ export default function AssetCard({
           onError={() => setImageError(true)}
         />
       ) : (
-        <div className="absolute inset-0 bg-slate-100 flex flex-col items-center justify-center gap-2">
-          <span className="w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-500 font-bold text-lg shadow-xs">
+        <div className="absolute inset-0 bg-slate-100 flex flex-col items-center justify-center gap-1.5">
+          <span className="w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 font-bold text-lg shadow-2xs">
             {asset.name.charAt(0).toUpperCase()}
           </span>
           <span className="text-[11px] text-slate-400 font-medium">No photo</span>
         </div>
       )}
 
-      {/* ── TOP BADGES ─────────────────────────────────────── */}
-      <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none z-10 gap-2">
-        <span
-          className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-900/65 backdrop-blur-sm text-white shadow-sm max-w-[155px] truncate"
-          title={availabilityBadge}
-        >
-          {availabilityBadge}
-        </span>
+      {/* ── ADMIN ONLY TOP STATUS BADGE ───────────────────── */}
+      {isAdmin && (
+        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none z-10">
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm bg-slate-900/80 text-white backdrop-blur-xs">
+            {availabilityText}
+          </span>
+          <span
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm text-white ${
+              isOut ? 'bg-slate-900/90' : isPending ? 'bg-amber-500' : 'bg-[#037ef3]'
+            }`}
+          >
+            {isOut ? 'OUT' : isPending ? 'PENDING' : 'IN'}
+          </span>
+        </div>
+      )}
 
-        <span
-          className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full shadow-sm ${
-            isOut ? 'bg-slate-900/80 text-white' : 'bg-[#037ef3]/90 text-white'
-          }`}
-        >
-          <span className={`w-1.5 h-1.5 rounded-full ${isOut ? 'bg-amber-400' : 'bg-white'}`} />
-          {isOut ? 'OUT' : 'IN'}
-        </span>
-      </div>
-
-      {/* ── BOTTOM WHITE INFO PANEL ────────────────────────── */}
-      <div className="absolute bottom-2 left-2 right-2 bg-white/92 backdrop-blur-md rounded-2xl border border-white/70 shadow-sm px-3 pt-2.5 pb-2 flex flex-col gap-0.5 group-hover:bg-white/98 transition-colors">
-        {/* Row 1: Name + Quick Action Button */}
-        <div className="flex items-start justify-between gap-1.5">
+      {/* ── BOTTOM OVERLAY PANEL ───────────────────────────── */}
+      <div className="absolute bottom-2 left-2 right-2 bg-white/95 backdrop-blur-md rounded-xl border border-white/80 shadow-sm p-2 sm:p-2.5 flex items-center justify-between gap-2 group-hover:bg-white transition-colors">
+        {/* Left: Asset Name (Plus Available Count for requesters only) */}
+        <div className="min-w-0 flex-1">
           <h3
-            className="text-xs sm:text-sm font-extrabold text-slate-950 leading-snug line-clamp-2 flex-1"
+            className="text-xs sm:text-sm font-extrabold text-slate-950 truncate leading-tight"
             title={asset.name}
           >
             {asset.name}
           </h3>
-
-          {/* Quick Action Button */}
-          {isAdmin ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onStatusToggle(asset);
-              }}
-              disabled={isTogglingStatus}
-              className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[10px] transition disabled:opacity-50 ${
+          {!isAdmin && (
+            <p
+              className={`text-[10px] sm:text-[11px] font-semibold mt-0.5 truncate leading-none ${
                 isOut
-                  ? 'bg-slate-900 text-white hover:bg-slate-700'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  ? 'text-slate-400'
+                  : isPending
+                  ? 'text-amber-600'
+                  : 'text-[#037ef3]'
               }`}
-              title={isOut ? 'Mark IN' : 'Mark OUT'}
             >
-              {isTogglingStatus ? (
-                <span className="w-2.5 h-2.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              ) : (
-                isOut ? 'IN' : 'OUT'
-              )}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRequestClick(asset);
-              }}
-              disabled={isOut || !hasRemaining}
-              className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition ${
-                isOut || !hasRemaining
-                  ? 'bg-slate-100 text-slate-300 cursor-not-allowed'
-                  : 'bg-slate-900 text-white hover:bg-slate-700'
-              }`}
-              title={isOut ? 'Unavailable' : 'Request'}
-            >
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </button>
+              {availabilityText}
+            </p>
           )}
         </div>
 
-        {/* Row 2: Subtitle or Requester + Admin tools / Info hint */}
-        <div className="flex items-center justify-between gap-1 min-h-[16px] text-[10px] sm:text-[11px] font-medium text-slate-600">
-          <p className="truncate flex-1 leading-tight" title={isOut && asset.reqBy ? `By: ${asset.reqBy}` : subtitle}>
-            {isOut && asset.reqBy ? (
-              <span>
-                <strong className="text-slate-800">By:</strong> {asset.reqBy}
-                {asset.reqQty > 0 && <span className="text-slate-400 ml-1">({asset.reqQty} req)</span>}
-              </span>
+        {/* Right: Actions */}
+        {isAdmin ? (
+          /* Admin Controls: Status Toggle Only */
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onStatusToggle(asset);
+            }}
+            disabled={isTogglingStatus}
+            className={`h-7 px-2.5 rounded-lg flex items-center justify-center font-bold text-[10px] shrink-0 transition disabled:opacity-50 ${
+              isOut
+                ? 'bg-slate-900 text-white hover:bg-slate-700'
+                : isPending
+                ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-2xs'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            {isTogglingStatus ? (
+              <span className="w-2.5 h-2.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : isOut ? (
+              'IN'
+            ) : isPending ? (
+              'Hand Over'
             ) : (
-              subtitle || '\u00A0'
+              'OUT'
             )}
-          </p>
+          </button>
+        ) : isInCart ? (
+          /* Requester: In-basket Stepper */
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="shrink-0 h-8 flex items-center bg-[#037ef3] text-white rounded-xl p-0.5 shadow-2xs"
+          >
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (cartQty <= 1) {
+                  onRemoveCartItem?.(asset.category, asset.rowIndex);
+                } else {
+                  onUpdateCartQty?.(asset.category, asset.rowIndex, cartQty - 1);
+                }
+              }}
+              className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-black/15 active:bg-black/25 transition text-white"
+              title={cartQty <= 1 ? 'Remove from basket' : 'Decrease'}
+              aria-label="Decrease quantity"
+            >
+              {cartQty <= 1 ? (
+                <Trash2 className="w-3 h-3 text-white" />
+              ) : (
+                <Minus className="w-3 h-3 text-white" />
+              )}
+            </button>
 
-          <div className="flex items-center gap-0.5 shrink-0">
-            {isAdmin ? (
-              <>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEditClick(asset);
-                  }}
-                  className="p-1 rounded-lg text-slate-400 hover:text-[#037ef3] hover:bg-blue-50 transition"
-                  title="Edit"
-                >
-                  <Edit2 className="w-3 h-3" />
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteClick(asset);
-                  }}
-                  className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
-                  title="Delete"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </>
-            ) : (
-              <span className="text-[10px] font-semibold text-[#037ef3] group-hover:underline">
-                Details &rarr;
-              </span>
-            )}
+            <span className="min-w-[18px] px-1 text-center text-xs font-black select-none leading-none">
+              {cartQty}
+            </span>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onUpdateCartQty?.(
+                  asset.category,
+                  asset.rowIndex,
+                  Math.min(maxQty, cartQty + 1)
+                );
+              }}
+              disabled={isNumericRemaining && cartQty >= (asset.remainingQty as number)}
+              className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-black/15 active:bg-black/25 transition disabled:opacity-35 disabled:cursor-not-allowed text-white"
+              title="Increase"
+              aria-label="Increase quantity"
+            >
+              <Plus className="w-3 h-3 text-white" />
+            </button>
           </div>
-        </div>
+        ) : (
+          /* Requester: Clean "+" Add Button */
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddToCart ? onAddToCart(asset) : onRequestClick(asset);
+            }}
+            disabled={isOut || isPending || !hasRemaining}
+            className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition ${
+              isOut || isPending || !hasRemaining
+                ? 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                : 'bg-[#037ef3] text-white hover:bg-[#0263c2] active:scale-95 shadow-2xs'
+            }`}
+            title={
+              isOut
+                ? 'Unavailable'
+                : isPending
+                ? 'Requested · Pending handover'
+                : 'Add to basket'
+            }
+            aria-label="Add to basket"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+          </button>
+        )}
       </div>
     </div>
   );
