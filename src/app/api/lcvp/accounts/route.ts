@@ -1,21 +1,17 @@
 import { NextResponse } from 'next/server';
 import { verifyRole } from '@/lib/server-auth';
 import { getAccounts, createOrUpdateAccount, deleteAccount } from '@/lib/holder-storage';
+import { hashPassword } from '@/lib/auth-passwords';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  // Only LCVP can view and manage user accounts
+  // STRICT LCVP RBAC GATING: Only LCVP can view user accounts directory
   const auth = await verifyRole(request, ['lcvp']);
   if (!auth.authorized) {
     return NextResponse.json(
-      {
-        error:
-          auth.status === 403
-            ? 'Access restricted: Only LCVP (Finance & Legality) can manage user accounts.'
-            : auth.error,
-      },
-      { status: auth.status }
+      { error: 'Forbidden: Access to LCVP Account Management requires LCVP role.' },
+      { status: auth.status === 401 ? 401 : 403 }
     );
   }
 
@@ -24,22 +20,18 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  // STRICT LCVP RBAC GATING: Only LCVP can create or update user accounts
   const auth = await verifyRole(request, ['lcvp']);
   if (!auth.authorized) {
     return NextResponse.json(
-      {
-        error:
-          auth.status === 403
-            ? 'Only LCVP (Finance & Legality) can create or update accounts.'
-            : auth.error,
-      },
-      { status: auth.status }
+      { error: 'Forbidden: Only LCVP (Finance & Legality) can provision user accounts.' },
+      { status: auth.status === 401 ? 401 : 403 }
     );
   }
 
   try {
     const body = await request.json();
-    const { email, name, role, assignedCategory, status } = body;
+    const { email, name, role, assignedCategory, status, password } = body;
 
     if (!email || !email.includes('@')) {
       return NextResponse.json({ error: 'Valid email is required' }, { status: 400 });
@@ -49,9 +41,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Role must be holder or lcvp' }, { status: 400 });
     }
 
+    let hashedPassword: string | undefined = undefined;
+    if (password && password.trim().length > 0) {
+      hashedPassword = await hashPassword(password.trim());
+    } else {
+      hashedPassword = await hashPassword('LCAU2026!');
+    }
+
     const saved = createOrUpdateAccount({
       email,
       name,
+      password: hashedPassword,
       role: role || 'holder',
       assignedCategory,
       status: status || 'active',
@@ -67,16 +67,12 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  // STRICT LCVP RBAC GATING: Only LCVP can delete user accounts
   const auth = await verifyRole(request, ['lcvp']);
   if (!auth.authorized) {
     return NextResponse.json(
-      {
-        error:
-          auth.status === 403
-            ? 'Only LCVP (Finance & Legality) can delete user accounts.'
-            : auth.error,
-      },
-      { status: auth.status }
+      { error: 'Forbidden: Only LCVP (Finance & Legality) can delete user accounts.' },
+      { status: auth.status === 401 ? 401 : 403 }
     );
   }
 

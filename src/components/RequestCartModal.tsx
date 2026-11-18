@@ -166,7 +166,7 @@ export default function RequestCartModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Mobile drag handle */}
-        <div className="w-12 h-1 bg-slate-300 rounded-full mx-auto mt-2.5 mb-0.5 sm:hidden shrink-0" />
+        <div className="w-12 h-1 bg-slate-300 rounded-sm mx-auto mt-2.5 mb-0.5 sm:hidden shrink-0" />
 
         {/* Header */}
         <div className="px-5 py-3.5 sm:py-4 border-b border-slate-100 flex items-center justify-between gap-3 bg-slate-50/60 shrink-0">

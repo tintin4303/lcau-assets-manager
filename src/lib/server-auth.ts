@@ -13,6 +13,7 @@ export interface AuthVerification {
 
 /**
  * Verify that the incoming request is authenticated and has one of the allowed roles.
+ * Supports both Supabase JWT sessions and custom bcrypt authentication tokens.
  */
 export async function verifyRole(
   request: Request,
@@ -28,27 +29,55 @@ export async function verifyRole(
   }
 
   const token = authHeader.substring(7);
+
+  let userEmail: string | undefined = undefined;
+  let userMetadataRole: string | undefined = undefined;
+  let resolvedUser: User | undefined = undefined;
+
+  // 1. Try Supabase session verification
   const {
     data: { user },
-    error,
   } = await supabase.auth.getUser(token);
 
-  if (error || !user) {
+  if (user) {
+    userEmail = user.email;
+    userMetadataRole = user.user_metadata?.role;
+    resolvedUser = user;
+  } else if (token.startsWith('custom:')) {
+    // 2. Try custom bcrypt auth token
+    try {
+      const raw = Buffer.from(token.replace('custom:', ''), 'base64').toString('utf8');
+      const payload = JSON.parse(raw);
+      if (payload && payload.email) {
+        userEmail = payload.email;
+        userMetadataRole = payload.role;
+        resolvedUser = {
+          id: payload.id,
+          email: payload.email,
+          user_metadata: { role: payload.role, name: payload.name },
+        } as unknown as User;
+      }
+    } catch {
+      // Invalid custom token format
+    }
+  }
+
+  if (!resolvedUser || !userEmail) {
     return {
       authorized: false,
       status: 401,
-      error: error?.message || 'Unauthorized: Invalid session',
+      error: 'Unauthorized: Invalid or expired session',
     };
   }
 
-  const role = resolveUserRole(user.email || '', user.user_metadata?.role);
+  const role = resolveUserRole(userEmail, userMetadataRole);
 
   if (!allowedRoles.includes(role)) {
     return {
       authorized: false,
       status: 403,
       error: `Forbidden: Role '${role}' is not authorized to perform this action.`,
-      user,
+      user: resolvedUser,
       role,
     };
   }
@@ -56,13 +85,13 @@ export async function verifyRole(
   return {
     authorized: true,
     status: 200,
-    user,
+    user: resolvedUser,
     role,
   };
 }
 
 /**
- * Backwards compatibility helper for admin actions (both holder and lcvp have admin access)
+ * Backwards compatibility helper for admin actions
  */
 export async function verifyAdmin(request: Request): Promise<{ authorized: boolean; error?: string; status?: number; role?: UserRole; user?: User }> {
   const result = await verifyRole(request, ['holder', 'lcvp']);

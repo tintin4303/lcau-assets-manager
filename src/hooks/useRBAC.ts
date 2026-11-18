@@ -54,6 +54,20 @@ export function useRBAC(): RBACState {
       if (session?.access_token) {
         await fetchRole(session.access_token);
       } else {
+        const savedCustom = typeof window !== 'undefined' ? localStorage.getItem('lcau_custom_auth') : null;
+        if (savedCustom) {
+          try {
+            const parsed = JSON.parse(savedCustom);
+            const customUser = parsed.user || parsed;
+            const customToken = parsed.token || '';
+            setUser({ id: customUser.id, email: customUser.email } as User);
+            setSession({ access_token: customToken } as Session);
+            setRole(customUser.role || 'requester');
+            return;
+          } catch {
+            // ignore
+          }
+        }
         setRole('requester');
       }
     } finally {
@@ -70,6 +84,20 @@ export function useRBAC(): RBACState {
       if (session?.access_token) {
         await fetchRole(session.access_token);
       } else {
+        const savedCustom = typeof window !== 'undefined' ? localStorage.getItem('lcau_custom_auth') : null;
+        if (savedCustom) {
+          try {
+            const parsed = JSON.parse(savedCustom);
+            const customUser = parsed.user || parsed;
+            const customToken = parsed.token || '';
+            setUser({ id: customUser.id, email: customUser.email } as User);
+            setSession({ access_token: customToken } as Session);
+            setRole(customUser.role || 'requester');
+            return;
+          } catch {
+            // ignore
+          }
+        }
         setRole('requester');
       }
       setLoading(false);
@@ -81,6 +109,9 @@ export function useRBAC(): RBACState {
   }, [refresh, fetchRole]);
 
   const logout = useCallback(async () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('lcau_custom_auth');
+    }
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);

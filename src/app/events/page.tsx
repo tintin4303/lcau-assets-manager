@@ -218,11 +218,8 @@ export default function EventsPage() {
               <p className="text-xs font-semibold text-[#037ef3] uppercase tracking-widest mb-1">
                 LCAU Operations · Equipment Intelligence
               </p>
-              <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
+              <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
                 Event Tracker & History
-                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-[#037ef3] border border-blue-200">
-                  {events.length} Events
-                </span>
               </h1>
               <p className="mt-1 text-sm text-slate-500">
                 Manage upcoming events, audit what equipment was requested for previous events, and review high-demand inventory.
@@ -277,13 +274,17 @@ export default function EventsPage() {
             onClick={() => setActiveTab('events')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
               activeTab === 'events'
-                ? 'bg-slate-900 text-white shadow-xs'
+                ? 'bg-[#037ef3] text-white shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
             <Calendar className="w-4 h-4" />
             <span>Events Directory</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full font-black bg-white/20">
+            <span
+              className={`text-[11px] px-2 py-0.5 rounded-md font-bold ${
+                activeTab === 'events' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+              }`}
+            >
               {events.length}
             </span>
           </button>
@@ -293,13 +294,17 @@ export default function EventsPage() {
             onClick={() => setActiveTab('history')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
               activeTab === 'history'
-                ? 'bg-slate-900 text-white shadow-xs'
+                ? 'bg-[#037ef3] text-white shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
             <History className="w-4 h-4" />
             <span>Previous Events History</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full font-black bg-white/20">
+            <span
+              className={`text-[11px] px-2 py-0.5 rounded-md font-bold ${
+                activeTab === 'history' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+              }`}
+            >
               {historyRecords.length}
             </span>
           </button>
@@ -309,7 +314,7 @@ export default function EventsPage() {
             onClick={() => setActiveTab('recommender')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
               activeTab === 'recommender'
-                ? 'bg-blue-600 text-white shadow-xs'
+                ? 'bg-[#037ef3] text-white shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
@@ -326,17 +331,17 @@ export default function EventsPage() {
               <button
                 type="button"
                 onClick={() => setFilter('active')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 ${
                   filter === 'active'
-                    ? 'bg-slate-900 text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'bg-[#037ef3] text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
                 <Clock className="w-3.5 h-3.5" />
                 <span>Upcoming & Ongoing</span>
                 <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                    filter === 'active' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'
+                  className={`text-[10px] px-1.5 py-0.2 rounded-md font-bold ${
+                    filter === 'active' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
                   }`}
                 >
                   {events.filter((e) => e.status === 'upcoming' || e.status === 'ongoing').length}
@@ -346,17 +351,17 @@ export default function EventsPage() {
               <button
                 type="button"
                 onClick={() => setFilter('completed')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 ${
                   filter === 'completed'
-                    ? 'bg-slate-900 text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'bg-[#037ef3] text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>Past / Completed</span>
                 <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                    filter === 'completed' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'
+                  className={`text-[10px] px-1.5 py-0.2 rounded-md font-bold ${
+                    filter === 'completed' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
                   }`}
                 >
                   {events.filter((e) => e.status === 'completed' || e.status === 'cancelled').length}
@@ -366,10 +371,10 @@ export default function EventsPage() {
               <button
                 type="button"
                 onClick={() => setFilter('all')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
                   filter === 'all'
-                    ? 'bg-slate-900 text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'bg-[#037ef3] text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
                 All ({events.length})
@@ -408,24 +413,35 @@ export default function EventsPage() {
                       className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between hover:shadow-md transition space-y-4"
                     >
                       <div className="space-y-3">
-                        {/* Header Badges */}
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-blue-50 text-[#037ef3] border border-blue-200 flex items-center gap-1">
-                            <Building className="w-3 h-3" />
-                            {evt.organizingFunction || 'All LC'}
-                          </span>
+                        {/* Function & Status Header */}
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-1.5 font-bold text-slate-500 uppercase tracking-wider text-[11px]">
+                            <Building className="w-3.5 h-3.5 text-[#037ef3]" />
+                            <span>{evt.organizingFunction || 'All LC'}</span>
+                          </div>
 
-                          <span
-                            className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${
-                              isOngoing
-                                ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                : isUpcoming
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                : 'bg-slate-100 text-slate-600 border-slate-200'
-                            }`}
-                          >
-                            {evt.status}
-                          </span>
+                          <div className="flex items-center gap-1.5 text-xs font-semibold">
+                            <span
+                              className={`w-2 h-2 rounded-full ${
+                                isOngoing
+                                  ? 'bg-amber-500 animate-pulse'
+                                  : isUpcoming
+                                  ? 'bg-emerald-500'
+                                  : 'bg-slate-400'
+                              }`}
+                            />
+                            <span
+                              className={
+                                isOngoing
+                                  ? 'text-amber-700 capitalize'
+                                  : isUpcoming
+                                  ? 'text-emerald-700 capitalize'
+                                  : 'text-slate-500 capitalize'
+                              }
+                            >
+                              {evt.status}
+                            </span>
+                          </div>
                         </div>
 
                         {/* Title & Date */}
@@ -565,16 +581,27 @@ export default function EventsPage() {
                           <span className="font-semibold">{r.requesterName}</span> ({r.requesterFunction})
                         </td>
                         <td className="py-2.5 px-3">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold text-[10px] border ${
-                              isReturned
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                : isLoaned
-                                ? 'bg-slate-900 text-white border-slate-900'
-                                : 'bg-amber-50 text-amber-700 border-amber-200'
-                            }`}
-                          >
-                            {isReturned ? 'Returned (IN)' : isLoaned ? 'Loaned (OUT)' : 'Pending Handover'}
+                          <span className="inline-flex items-center gap-1.5 font-semibold text-xs">
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                isReturned
+                                  ? 'bg-emerald-500'
+                                  : isLoaned
+                                  ? 'bg-rose-500'
+                                  : 'bg-amber-500 animate-pulse'
+                              }`}
+                            />
+                            <span
+                              className={
+                                isReturned
+                                  ? 'text-emerald-700'
+                                  : isLoaned
+                                  ? 'text-rose-700'
+                                  : 'text-amber-700'
+                              }
+                            >
+                              {isReturned ? 'Returned (IN)' : isLoaned ? 'Loaned (OUT)' : 'Pending Handover'}
+                            </span>
                           </span>
                         </td>
                         <td className="py-2.5 px-3 text-slate-400 text-[11px]">
@@ -592,8 +619,8 @@ export default function EventsPage() {
         {/* ── TAB 3: MOST REQUESTED ITEMS (RECOMMENDER PREVIEW) ── */}
         {activeTab === 'recommender' && (
           <div className="space-y-4">
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#037ef3] text-white flex items-center justify-center shrink-0 shadow-xs">
                 <Sparkles className="w-5 h-5" />
               </div>
               <div>
@@ -690,16 +717,27 @@ export default function EventsPage() {
                             {r.quantity} units
                           </span>
                           <div className="mt-0.5">
-                            <span
-                              className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
-                                isReturned
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                  : isLoaned
-                                  ? 'bg-slate-900 text-white border-slate-900'
-                                  : 'bg-amber-50 text-amber-700 border-amber-200'
-                              }`}
-                            >
-                              {r.status}
+                            <span className="inline-flex items-center gap-1 font-semibold text-[11px]">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  isReturned
+                                    ? 'bg-emerald-500'
+                                    : isLoaned
+                                    ? 'bg-rose-500'
+                                    : 'bg-amber-500 animate-pulse'
+                                }`}
+                              />
+                              <span
+                                className={
+                                  isReturned
+                                    ? 'text-emerald-700 capitalize'
+                                    : isLoaned
+                                    ? 'text-rose-700 capitalize'
+                                    : 'text-amber-700 capitalize'
+                                }
+                              >
+                                {r.status}
+                              </span>
                             </span>
                           </div>
                         </div>

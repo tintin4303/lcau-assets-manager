@@ -31,5 +31,16 @@
     "status": "ongoing",
     "createdBy": "nyunttin@aiesec.net",
     "createdAt": "2026-11-01T00:00:00Z"
+  },
+  {
+    "name": "Glance of Change",
+    "date": "2026-11-20",
+    "organizingFunction": "All LC",
+    "location": "SCIT",
+    "description": "",
+    "status": "upcoming",
+    "id": "evt-1794985965567",
+    "createdBy": "alyssa.intawong@aiesec.net",
+    "createdAt": "2026-11-18T07:12:45.567Z"
   }
 ]

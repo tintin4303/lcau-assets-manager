@@ -133,13 +133,7 @@ export default function CustomDropdown<T extends string>({
 
                 <span className="inline-flex items-center gap-2 shrink-0">
                   {option.badge !== undefined && (
-                    <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                        isSelected
-                          ? 'bg-[#037ef3]/10 text-[#037ef3] font-semibold'
-                          : 'bg-slate-100 text-slate-500'
-                      }`}
-                    >
+                    <span className="text-[11px] font-semibold text-slate-400">
                       {option.badge}
                     </span>
                   )}

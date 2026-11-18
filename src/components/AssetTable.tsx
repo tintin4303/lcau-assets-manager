@@ -462,17 +462,17 @@ export default function AssetTable({
                         {/* Status */}
                         <td className="py-2.5 px-4 text-center whitespace-nowrap">
                           {isOut ? (
-                            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
-                              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 inline-block shrink-0" />
+                            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-rose-600">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block shrink-0" />
                               OUT
                             </span>
                           ) : isPending ? (
-                            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-600">
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block shrink-0" />
                               REQUESTED
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-900">
+                            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block shrink-0" />
                               IN
                             </span>

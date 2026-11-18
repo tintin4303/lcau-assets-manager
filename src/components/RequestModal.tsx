@@ -188,12 +188,9 @@ export default function RequestModal({ isOpen, asset, onClose, onSuccess }: Requ
             <p className="text-sm font-bold text-slate-900 mt-0.5 truncate">{asset.name}</p>
 
             <div className="flex items-center gap-2 mt-1">
-              <span
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                  isOut ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-700'
-                }`}
-              >
-                {isOut ? 'OUT' : 'IN'}
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold">
+                <span className={`w-1.5 h-1.5 rounded-full ${isOut ? 'bg-rose-500' : 'bg-emerald-500'}`} />
+                <span className={isOut ? 'text-rose-700' : 'text-emerald-700'}>{isOut ? 'OUT' : 'IN'}</span>
               </span>
               <span className="text-xs text-slate-600">
                 {isNumericRemaining && isNumericTotal ? (

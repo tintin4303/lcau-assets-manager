@@ -88,12 +88,12 @@ export default function AssetCard({
       {/* ── ADMIN ONLY TOP STATUS BADGE ───────────────────── */}
       {isAdmin && (
         <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none z-10">
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm bg-slate-900/80 text-white backdrop-blur-xs">
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md shadow-xs bg-slate-900/80 text-white backdrop-blur-xs">
             {availabilityText}
           </span>
           <span
-            className={`text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm text-white ${
-              isOut ? 'bg-slate-900/90' : isPending ? 'bg-amber-500' : 'bg-[#037ef3]'
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-md shadow-xs text-white ${
+              isOut ? 'bg-rose-600' : isPending ? 'bg-amber-500' : 'bg-emerald-600'
             }`}
           >
             {isOut ? 'OUT' : isPending ? 'PENDING' : 'IN'}

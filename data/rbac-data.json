@@ -9,8 +9,8 @@
     },
     "Decoration": {
       "category": "Decoration",
-      "holderName": "Alyssa",
-      "holderEmail": "alyssa@aiesec.net",
+      "holderName": "Alyssa Intawong",
+      "holderEmail": "alyssa.intawong@aiesec.net",
       "storageLocation": "Student Lounge Cabinet 2",
       "lastUpdated": "2026-11-17T16:15:44.854Z"
     },
@@ -27,26 +27,19 @@
       "id": "acc-1",
       "email": "nyunttin@aiesec.net",
       "name": "Tim (Master Tin)",
+      "password": "$2b$10$oZocw9VntmIDzstx2xTYUOw2G9fXjH6oWVUnsTzGqh1Vu2BVXtcGy",
       "role": "holder",
-      "assignedCategory": "Stationary & General",
+      "assignedCategory": "Stationary",
       "createdAt": "2026-09-01T00:00:00Z",
       "status": "active"
     },
     {
       "id": "acc-2",
-      "email": "lcvp.finance@aiesec.net",
-      "name": "LCVP Finance & Legality",
+      "email": "alyssa.intawong@aiesec.net",
+      "name": "Alyssa Intawong",
+      "password": "$2b$10$sIgWcMhfVtqptENtmH5Rk.HpsbGP1pwu9FgL2r/p41LjWRiiSLuaK",
       "role": "lcvp",
       "createdAt": "2026-09-01T00:00:00Z",
-      "status": "active"
-    },
-    {
-      "id": "acc-3",
-      "email": "alyssa@aiesec.net",
-      "name": "Alyssa",
-      "role": "holder",
-      "assignedCategory": "Decoration",
-      "createdAt": "2026-09-15T00:00:00Z",
       "status": "active"
     }
   ]

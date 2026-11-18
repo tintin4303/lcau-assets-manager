@@ -55,7 +55,7 @@ export default function DeleteModal({
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 space-y-4">
         <div className="flex items-center space-x-3 text-rose-600">
-          <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center border border-rose-100">
+          <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center border border-rose-100">
             <AlertTriangle className="w-5 h-5 text-rose-600" />
           </div>
           <div>

@@ -114,17 +114,17 @@ export default function AssetDetailModal({
             </div>
 
             {isOut ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-900 text-white shrink-0 self-start">
-                <span className="w-2 h-2 rounded-full bg-slate-400" />
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-600 shrink-0 self-start">
+                <span className="w-2 h-2 rounded-full bg-rose-500" />
                 OUT (Checked out)
               </span>
             ) : isPending ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200/90 shrink-0 self-start">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 shrink-0 self-start">
                 <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                 REQUESTED (Pending Handover)
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shrink-0 self-start">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 shrink-0 self-start">
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
                 IN (Available)
               </span>
@@ -150,7 +150,7 @@ export default function AssetDetailModal({
                     onClick={() => onImageClick?.(asset.image)}
                     className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/15 transition cursor-pointer flex items-center justify-center"
                   >
-                    <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 text-slate-700 text-xs font-semibold px-2.5 py-1 rounded-full shadow-sm border border-slate-200 flex items-center gap-1.5">
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 text-slate-700 text-xs font-semibold px-2.5 py-1 rounded-md shadow-xs border border-slate-200 flex items-center gap-1.5">
                       <Maximize2 className="w-3 h-3" />
                       <span>Full view</span>
                     </span>

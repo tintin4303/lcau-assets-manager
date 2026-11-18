@@ -20,6 +20,7 @@ export interface AccountRecord {
   id: string;
   email: string;
   name: string;
+  password?: string; // bcrypt hash
   role: UserRole;
   assignedCategory?: string;
   createdAt: string;

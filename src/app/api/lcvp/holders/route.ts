@@ -5,9 +5,13 @@ import { getHolderAssignments, updateHolderAssignment } from '@/lib/holder-stora
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  const auth = await verifyRole(request, ['holder', 'lcvp']);
+  // STRICT LCVP RBAC GATING: Only LCVP can access this endpoint
+  const auth = await verifyRole(request, ['lcvp']);
   if (!auth.authorized) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
+    return NextResponse.json(
+      { error: 'Forbidden: Access to LCVP Holder Management requires LCVP role.' },
+      { status: auth.status === 401 ? 401 : 403 }
+    );
   }
 
   const assignments = getHolderAssignments();
@@ -15,17 +19,12 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  // Only LCVP can modify category holder assignments
+  // STRICT LCVP RBAC GATING: Only LCVP can reassign asset holders
   const auth = await verifyRole(request, ['lcvp']);
   if (!auth.authorized) {
     return NextResponse.json(
-      {
-        error:
-          auth.status === 403
-            ? 'Only LCVP (Finance & Legality) can reassign asset holders.'
-            : auth.error,
-      },
-      { status: auth.status }
+      { error: 'Forbidden: Only LCVP (Finance & Legality) can reassign asset holders.' },
+      { status: auth.status === 401 ? 401 : 403 }
     );
   }
 

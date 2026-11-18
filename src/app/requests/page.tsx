@@ -137,24 +137,14 @@ export default function RequestsPage() {
               <p className="text-xs font-semibold text-[#037ef3] uppercase tracking-widest mb-1">
                 LCAU Operations · Requests Management
               </p>
-              <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
+              <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
                 Incoming Requests & Handovers
-                {isLCVP && (
-                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-                    Audit View (Read-Only)
-                  </span>
-                )}
-                {isHolder && (
-                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    Asset Holder View
-                  </span>
-                )}
               </h1>
               <p className="mt-1 text-sm text-slate-500">
                 {isHolder
-                  ? 'Verify requester identity and confirm physical item handover and returns.'
+                  ? 'Asset Holder View · Verify requester identity and confirm physical item handover and returns.'
                   : isLCVP
-                  ? 'Executive audit log of all pending and active equipment loans across LCAU.'
+                  ? 'LCVP Audit View · Executive audit log of all pending and active equipment loans across LCAU.'
                   : 'Asset requests portal.'}
               </p>
             </div>
@@ -191,15 +181,15 @@ export default function RequestsPage() {
 
         {/* LCVP Audit Notice Banner */}
         {isLCVP && (
-          <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200/80 flex items-start gap-3">
-            <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0 text-indigo-700">
+          <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200/80 flex items-start gap-3">
+            <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center shrink-0 text-[#037ef3]">
               <Eye className="w-4 h-4" />
             </div>
             <div>
-              <p className="text-xs font-bold text-indigo-950">
+              <p className="text-xs font-bold text-slate-900">
                 LCVP Oversight & Audit Mode Active
               </p>
-              <p className="text-xs text-indigo-700 mt-0.5 leading-relaxed">
+              <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
                 As LCVP Finance & Legality, you have full audit visibility into all requests.
                 To maintain physical custody integrity, <strong>only the assigned Asset Holder can execute physical handovers and returns</strong>.
               </p>
@@ -257,8 +247,8 @@ export default function RequestsPage() {
                   <Clock className="w-3.5 h-3.5" />
                   <span>Pending Handover</span>
                   <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                      filter === 'pending' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-600'
+                    className={`text-[10px] px-1.5 py-0.2 rounded-md font-bold ${
+                      filter === 'pending' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
                     }`}
                   >
                     {pendingCount}
@@ -270,15 +260,15 @@ export default function RequestsPage() {
                   onClick={() => setFilter('out')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                     filter === 'out'
-                      ? 'bg-slate-900 text-white shadow-2xs'
+                      ? 'bg-rose-500 text-white shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <Package className="w-3.5 h-3.5" />
                   <span>Checked Out</span>
                   <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                      filter === 'out' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'
+                    className={`text-[10px] px-1.5 py-0.2 rounded-md font-bold ${
+                      filter === 'out' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
                     }`}
                   >
                     {checkedOutCount}
@@ -290,7 +280,7 @@ export default function RequestsPage() {
                   onClick={() => setFilter('all')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
                     filter === 'all'
-                      ? 'bg-slate-900 text-white shadow-2xs'
+                      ? 'bg-[#037ef3] text-white shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
@@ -353,21 +343,32 @@ export default function RequestsPage() {
                       <div className="space-y-3">
                         {/* Top Category & Status */}
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200">
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                             {item.category} · {item.id}
                           </span>
 
-                          <span
-                            className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${
-                              isPending
-                                ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                : isOut
-                                ? 'bg-slate-900 text-white border-slate-900'
-                                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            }`}
-                          >
-                            {isPending ? 'Pending Handover' : isOut ? 'Checked Out' : 'In Stock'}
-                          </span>
+                          <div className="flex items-center gap-1.5 text-xs font-semibold">
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                isPending
+                                  ? 'bg-amber-500 animate-pulse'
+                                  : isOut
+                                  ? 'bg-rose-500'
+                                  : 'bg-emerald-500'
+                              }`}
+                            />
+                            <span
+                              className={
+                                isPending
+                                  ? 'text-amber-700'
+                                  : isOut
+                                  ? 'text-rose-700'
+                                  : 'text-emerald-700'
+                              }
+                            >
+                              {isPending ? 'Pending Handover' : isOut ? 'Checked Out' : 'In Stock'}
+                            </span>
+                          </div>
                         </div>
 
                         {/* Title & Qty */}
@@ -422,13 +423,13 @@ export default function RequestsPage() {
                               type="button"
                               onClick={() => handleAction(item, 'return')}
                               disabled={isReturnLoading}
-                              className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition active:scale-98 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                              className="w-full py-2.5 px-3 rounded-xl bg-[#037ef3] hover:bg-[#0263c2] text-white font-bold text-xs shadow-xs transition active:scale-98 disabled:opacity-50 flex items-center justify-center gap-1.5"
                             >
                               {isReturnLoading ? (
                                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                               ) : (
                                 <>
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-white" />
                                   <span>Mark Returned (IN)</span>
                                 </>
                               )}
@@ -437,7 +438,7 @@ export default function RequestsPage() {
                         ) : isLCVP ? (
                           <div className="py-2 px-3 rounded-xl bg-slate-100 border border-slate-200 text-center">
                             <span className="text-[11px] font-bold text-slate-500 flex items-center justify-center gap-1">
-                              <Eye className="w-3.5 h-3.5 text-indigo-500" />
+                              <Eye className="w-3.5 h-3.5 text-slate-500" />
                               Read-Only (Holder Action Required)
                             </span>
                           </div>

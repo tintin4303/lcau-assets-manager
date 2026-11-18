@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  name             String
+  password         String   // Hashed with bcrypt
+  role             String   @default("requester") // "requester", "holder", "lcvp"
+  assignedCategory String?
+  status           String   @default("active") // "active", "invited", "disabled"
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("users")
+}
+
+model HolderAssignment {
+  category        String   @id // "Stationary", "Decoration", "General"
+  holderName      String
+  holderEmail     String
+  storageLocation String
+  lastUpdated     DateTime @default(now())
+
+  @@map("holder_assignments")
+}
+
+model Event {
+  id                 String         @id @default(cuid())
+  name               String
+  date               DateTime
+  organizingFunction String         @default("All LC")
+  location           String?
+  description        String?
+  status             String         @default("upcoming") // "upcoming", "ongoing", "completed", "cancelled"
+  createdBy          String?
+  createdAt          DateTime       @default(now())
+  requests           EventRequest[]
+
+  @@map("events")
+}
+
+model EventRequest {
+  id                String    @id @default(cuid())
+  eventId           String?
+  event             Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  eventName         String
+  requesterName     String
+  requesterFunction String
+  assetId           String
+  assetName         String
+  category          String
+  rowIndex          Int
+  quantity          Int       @default(1)
+  status            String    @default("pending") // "pending", "loaned", "returned"
+  requestedAt       DateTime  @default(now())
+  handedOverAt      DateTime?
+  returnedAt        DateTime?
+
+  @@map("event_requests")
+}

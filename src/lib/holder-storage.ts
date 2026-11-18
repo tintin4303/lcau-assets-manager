@@ -21,8 +21,8 @@ const DEFAULT_DATA: RBACData = {
     },
     Decoration: {
       category: 'Decoration',
-      holderName: 'Alyssa',
-      holderEmail: 'alyssa@aiesec.net',
+      holderName: 'Alyssa Intawong',
+      holderEmail: 'alyssa.intawong@aiesec.net',
       storageLocation: 'Student Lounge Cabinet 2',
       lastUpdated: new Date().toISOString(),
     },
@@ -46,19 +46,10 @@ const DEFAULT_DATA: RBACData = {
     },
     {
       id: 'acc-2',
-      email: 'lcvp.finance@aiesec.net',
-      name: 'LCVP Finance & Legality',
+      email: 'alyssa.intawong@aiesec.net',
+      name: 'Alyssa Intawong',
       role: 'lcvp',
       createdAt: '2026-09-01T00:00:00Z',
-      status: 'active',
-    },
-    {
-      id: 'acc-3',
-      email: 'alyssa@aiesec.net',
-      name: 'Alyssa',
-      role: 'holder',
-      assignedCategory: 'Decoration',
-      createdAt: '2026-09-15T00:00:00Z',
       status: 'active',
     },
   ],
@@ -174,7 +165,7 @@ export function resolveUserRole(email: string, userMetadataRole?: string): UserR
   if (match) return match.role;
 
   // Check LCVP configuration environment
-  const lcvpEmails = (process.env.LCVP_EMAILS || 'lcvp.finance@aiesec.net').toLowerCase().split(',');
+  const lcvpEmails = (process.env.LCVP_EMAILS || 'alyssa.intawong@aiesec.net,lcvp.finance@aiesec.net').toLowerCase().split(',');
   if (lcvpEmails.includes(email.toLowerCase())) return 'lcvp';
 
   // Default authenticated role is holder

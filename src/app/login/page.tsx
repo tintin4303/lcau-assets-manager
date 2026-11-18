@@ -19,19 +19,37 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      // 1. Try Supabase Auth first
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
 
-      if (signInError) {
-        throw signInError;
-      }
-
-      if (data.session) {
+      if (!signInError && data?.session) {
         router.push('/');
         router.refresh();
+        return;
       }
+
+      // 2. Check custom user table with bcrypt verification
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      const customData = await res.json();
+
+      if (res.ok && customData.success) {
+        localStorage.setItem(
+          'lcau_custom_auth',
+          JSON.stringify({ user: customData.user, token: customData.token })
+        );
+        router.push('/');
+        router.refresh();
+        return;
+      }
+
+      throw new Error(customData.error || signInError?.message || 'Invalid login credentials.');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Invalid login credentials.';
       setError(message);
